@@ -34,13 +34,19 @@ class SymmetryDetector():
         cnts = cnts[0][cnts_len.index(max(cnts_len))]
         M = cv2.moments(cnts)
         cX = int(M["m10"] / M["m00"])
-        cY = int(M["m01"] / M["m00"])        
-        
-        self.centroid = (cX, cY)
-        radii = list(map(distance.euclidean, cnts, [[cX, cY]]*len(cnts)))
-        
-        self.maxRadius = int(np.round(max(radii)))
-        return [(cX, cY),np.round(max(radii))]
+        cY = int(M["m01"] / M["m00"])   
+        if self.centroid == (-1,-1):
+            self.centroid = (cX, cY)
+        else:
+            (cX,cY) = self.centroid
+
+        if self.maxRadius == -1:
+            radii = list(map(distance.euclidean, cnts, [[cX, cY]]*len(cnts)))
+            self.maxRadius = int(np.round(max(radii)))
+            max_Radius = np.round(max(radii))
+        else:
+            max_Radius = self.maxRadius
+        return [(cX, cY), max_Radius]
 
 
     def score(self, img):
@@ -68,8 +74,8 @@ class SymmetryDetector():
             rotated_img = self.rotateImage(cropped_img, i, shape)
             Scores[indx][0] = i-45
             Scores[indx][1] = self.score(rotated_img)
-            
-        return Scores
+        return Scores[np.where(Scores[:,1]>self.scoreThreshold)]
+        # return Scores
 
     def getSymmetry(self, img, angle):
         img = self.preprocessImage(img)
@@ -77,8 +83,9 @@ class SymmetryDetector():
         max_radius = int(max_radius)
 
         cropped_img = img[cy-max_radius:cy+max_radius, cx-max_radius:cx+max_radius]
-        angle -= 45
-        rotated_img = self.rotateImage(img, angle)
+        angle += 45
+        shape = (cropped_img.shape[0]/2, cropped_img.shape[0]/2)
+        rotated_img = self.rotateImage(cropped_img, angle, shape)
         return self.score(rotated_img)
 
     def getMaxSymmetry(self, img):
